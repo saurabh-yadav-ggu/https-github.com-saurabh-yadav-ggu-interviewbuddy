@@ -1,8 +1,8 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Initialize the worker. 
-// Match version with import map in index.html (5.4.449)
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@5.4.449/build/pdf.worker.min.mjs`;
+// CRITICAL FIX: Pin the worker version to 4.0.379 to match package.json.
+// Using unpkg is more reliable for specific version targeting than esm.sh for the worker file in this specific Vite setup.
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs`;
 
 export async function extractTextFromPDF(file: File): Promise<string> {
   try {
@@ -19,7 +19,7 @@ export async function extractTextFromPDF(file: File): Promise<string> {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
       
-      // Extract text items and join them
+      // Extract text items and join them with proper spacing
       const pageText = textContent.items
         .map((item: any) => item.str)
         .join(' ');
@@ -27,9 +27,14 @@ export async function extractTextFromPDF(file: File): Promise<string> {
       fullText += pageText + '\n\n';
     }
 
-    return fullText.trim();
+    const trimmed = fullText.trim();
+    if (!trimmed) {
+        throw new Error("PDF text layer is empty (likely a scanned image).");
+    }
+
+    return trimmed;
   } catch (error) {
     console.error("Error extracting text from PDF:", error);
-    throw new Error("Failed to parse PDF. Please try copying the text manually.");
+    throw new Error("Failed to read PDF. Ensure it is text-based, not a scanned image.");
   }
 }

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { CandidateProfile } from '../types';
-import { User, Briefcase, FileText, ArrowRight, Upload, Loader2, AlertCircle, Clock } from 'lucide-react';
+import { User, Briefcase, FileText, ArrowRight, Upload, Loader2, AlertCircle, Clock, Building2 } from 'lucide-react';
 import { extractTextFromPDF } from '../utils/pdfUtils';
 
 interface SetupFormProps {
@@ -14,45 +14,82 @@ const SetupForm: React.FC<SetupFormProps> = ({ onComplete }) => {
     experienceLevel: 'Intermediate',
     resumeText: '',
     jobDescription: '',
-    durationMinutes: 15 // Default duration
+    companyContext: '',
+    durationMinutes: 15
   });
   
-  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Track loading state for each specific upload field
+  const [loadingField, setLoadingField] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Refs to reset file inputs
+  const resumeInputRef = useRef<HTMLInputElement>(null);
+  const jdInputRef = useRef<HTMLInputElement>(null);
+  const companyInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onComplete(profile);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: keyof CandidateProfile) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.type !== 'application/pdf') {
-      setPdfError("Please upload a PDF file.");
+      setErrorMsg("Please upload a valid PDF file.");
       return;
     }
 
-    setIsProcessingPdf(true);
-    setPdfError(null);
+    setLoadingField(fieldName);
+    setErrorMsg(null);
 
     try {
       const text = await extractTextFromPDF(file);
       if (text.length < 50) {
-        setPdfError("Could not extract enough text. The PDF might be an image/scanned. Please paste text manually.");
+        setErrorMsg("Could not extract enough text. The PDF might be an image/scanned. Please paste text manually.");
       } else {
-        setProfile(prev => ({ ...prev, resumeText: text }));
+        setProfile(prev => ({ ...prev, [fieldName]: text }));
       }
     } catch (err) {
-      setPdfError("Failed to read PDF. Please paste text manually.");
+      setErrorMsg("Failed to read PDF. Please paste text manually.");
     } finally {
-      setIsProcessingPdf(false);
-      // Reset input so same file can be selected again if needed
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setLoadingField(null);
+      // Reset the specific input
+      if (fieldName === 'resumeText' && resumeInputRef.current) resumeInputRef.current.value = '';
+      if (fieldName === 'jobDescription' && jdInputRef.current) jdInputRef.current.value = '';
+      if (fieldName === 'companyContext' && companyInputRef.current) companyInputRef.current.value = '';
     }
   };
+
+  const renderUploadButton = (fieldName: keyof CandidateProfile, ref: React.RefObject<HTMLInputElement | null>, label: string) => (
+    <div className="relative">
+      <input 
+        type="file" 
+        accept="application/pdf"
+        ref={ref}
+        onChange={(e) => handleFileUpload(e, fieldName)}
+        className="hidden" 
+        id={`upload-${fieldName}`} 
+      />
+      <label 
+        htmlFor={`upload-${fieldName}`}
+        className={`cursor-pointer inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors
+          ${loadingField === fieldName ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'}
+        `}
+      >
+        {loadingField === fieldName ? (
+          <>
+            <Loader2 size={14} className="animate-spin mr-1.5" /> Parsing...
+          </>
+        ) : (
+          <>
+            <Upload size={14} className="mr-1.5" /> {label}
+          </>
+        )}
+      </label>
+    </div>
+  );
 
   return (
     <div className="max-w-3xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
@@ -62,6 +99,14 @@ const SetupForm: React.FC<SetupFormProps> = ({ onComplete }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
+        {/* Global Error Message */}
+        {errorMsg && (
+             <div className="flex items-center p-3 text-sm text-red-700 bg-red-50 rounded-lg border border-red-100 animate-fade-in">
+               <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+               {errorMsg}
+             </div>
+        )}
+
         {/* Personal Info Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <div>
@@ -160,50 +205,16 @@ const SetupForm: React.FC<SetupFormProps> = ({ onComplete }) => {
         </div>
 
         {/* Resume Section */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex justify-between items-end">
             <label className="block text-sm font-semibold text-gray-700 flex items-center">
               <FileText size={16} className="mr-2 text-blue-600" /> Resume / Key Skills
             </label>
-            
-            <div className="relative">
-              <input 
-                type="file" 
-                accept="application/pdf"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                className="hidden" 
-                id="resume-upload" 
-              />
-              <label 
-                htmlFor="resume-upload"
-                className={`cursor-pointer inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors
-                  ${isProcessingPdf ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'}
-                `}
-              >
-                {isProcessingPdf ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin mr-1.5" /> Extracting...
-                  </>
-                ) : (
-                  <>
-                    <Upload size={14} className="mr-1.5" /> Upload PDF
-                  </>
-                )}
-              </label>
-            </div>
+            {renderUploadButton('resumeText', resumeInputRef, 'Upload PDF')}
           </div>
-
-          {pdfError && (
-             <div className="flex items-center p-3 text-sm text-red-700 bg-red-50 rounded-lg border border-red-100">
-               <AlertCircle size={16} className="mr-2 flex-shrink-0" />
-               {pdfError}
-             </div>
-          )}
-
           <textarea
             required
-            rows={6}
+            rows={4}
             className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-sm placeholder-gray-400 resize-y"
             placeholder="Paste your resume content or upload a PDF above..."
             value={profile.resumeText}
@@ -212,17 +223,37 @@ const SetupForm: React.FC<SetupFormProps> = ({ onComplete }) => {
         </div>
 
         {/* Job Description Section */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-            <FileText size={16} className="mr-2 text-blue-600" /> Job Description / Requirements
-          </label>
+        <div className="space-y-3">
+           <div className="flex justify-between items-end">
+             <label className="block text-sm font-semibold text-gray-700 flex items-center">
+              <Briefcase size={16} className="mr-2 text-blue-600" /> Job Description
+            </label>
+            {renderUploadButton('jobDescription', jdInputRef, 'Upload JD')}
+          </div>
           <textarea
             required
-            rows={5}
+            rows={4}
             className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-sm placeholder-gray-400 resize-y"
-            placeholder="Paste the job description you are interviewing for..."
+            placeholder="Paste the job description (JD) or upload PDF..."
             value={profile.jobDescription}
             onChange={(e) => setProfile({ ...profile, jobDescription: e.target.value })}
+          />
+        </div>
+
+        {/* Company Context Section (New) */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-end">
+             <label className="block text-sm font-semibold text-gray-700 flex items-center">
+              <Building2 size={16} className="mr-2 text-blue-600" /> Company Specific Details (Optional)
+            </label>
+            {renderUploadButton('companyContext', companyInputRef, 'Upload Details')}
+          </div>
+          <textarea
+            rows={3}
+            className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 outline-none transition text-sm placeholder-gray-400 resize-y"
+            placeholder="Paste company mission, values, or specific topics to cover (e.g. 'Ask about our core value of Customer Obsession')..."
+            value={profile.companyContext}
+            onChange={(e) => setProfile({ ...profile, companyContext: e.target.value })}
           />
         </div>
 

@@ -130,6 +130,7 @@ const AppContent: React.FC = () => {
         Level: ${profile.experienceLevel}
         Resume Snippet: ${profile.resumeText.substring(0, 1000)}...
         Job Description: ${profile.jobDescription.substring(0, 1000)}...
+        Company Specific Context: ${profile.companyContext ? profile.companyContext.substring(0, 1000) : "N/A"}
 
         --- INTERVIEW TRANSCRIPT ---
         ${transcript ? transcript.substring(0, 50000) : "No transcript available. Evaluate based on an assumption of average performance or incomplete session."} 
@@ -147,7 +148,7 @@ const AppContent: React.FC = () => {
         INSTRUCTIONS:
         1. **Technical Knowledge (0-100)**: Rate strictly based on correctness, depth, and relevance to the ${profile.role} role. Did they explain 'Why' and 'How'?
         2. **Communication (0-100)**: Assess clarity, fluency, and structure of thoughts.
-        3. **Behavioral (0-100)**: Infer confidence, problem-solving approach, and honesty from the text.
+        3. **Behavioral (0-100)**: Infer confidence, problem-solving approach, and honesty from the text. Check if they addressed the Company Context if provided.
         4. **Feedback**: Provide specific examples from the transcript in "strengths" and "gaps".
 
         IMPORTANT: Return ONLY valid JSON matching the schema.

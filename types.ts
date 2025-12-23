@@ -4,6 +4,7 @@ export interface CandidateProfile {
   experienceLevel: 'Fresher' | 'Intermediate' | 'Experienced';
   resumeText: string;
   jobDescription: string;
+  companyContext: string; // New field for company specific details
   durationMinutes: number;
 }
 
